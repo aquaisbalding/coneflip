@@ -51,7 +51,11 @@
 
         // Create ground
         const ground = Bodies.rectangle(window.innerWidth / 2, window.innerHeight - 10, window.innerWidth, 20, {
-            isStatic: true
+            isStatic: true,
+            render: {
+                fillStyle: 'transparent',  // Make the ground fill transparent
+                strokeStyle: 'transparent' // Make the ground outline transparent
+            }
         });
         Composite.add(world, ground);
 
