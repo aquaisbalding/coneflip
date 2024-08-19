@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spinning Traffic Cone</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="world"></canvas>
+
+    <!-- Matter.js library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <script>
+        // Set up the Matter.js engine and world
+        const { Engine, Render, Runner, Bodies, Composite, Body, Vertices } = Matter;
+
+        const engine = Engine.create();
+        const world = engine.world;
+
+        // Gravity setting
+        engine.world.gravity.y = 1.0;  // Gravity for faster falling
+
+        const canvas = document.getElementById('world');
+        const render = Render.create({
+            canvas: canvas,
+            engine: engine,
+            options: {
+                width: window.innerWidth,
+                height: window.innerHeight,
+                wireframes: false,
+                background: '#f0f0f0'
+            }
+        });
+
+        Render.run(render);
+
+        // Create a faster runner to match 60 FPS
+        const runner = Runner.create({
+            delta: 1000 / 60  // Targeting 60 FPS
+        });
+        Runner.run(runner, engine);
+
+        // Create ground
+        const ground = Bodies.rectangle(window.innerWidth / 2, window.innerHeight - 10, window.innerWidth, 20, {
+            isStatic: true
+        });
+        Composite.add(world, ground);
+
+        // Define the triangle (traffic cone) shape using vertices
+        const triangleVertices = Vertices.fromPath('0 0 40 70 -40 70'); // Original size
+        const trafficCone = Bodies.fromVertices(window.innerWidth / 2, window.innerHeight - 80, [triangleVertices], {
+            render: {
+                sprite: {
+                    texture: 'cone.png', // Replace with your actual traffic cone image URL
+                    xScale: 0.01,  // Original scale
+                    yScale: 0.01,
+                }
+            }
+        });
+        Composite.add(world, trafficCone);
+
+        // Variable to tweak the upward force
+        const upwardForceMultiplier = 0.1;  // Reduced force for a more moderate height
+
+        // Function to apply a moderate upward force and spin
+        function applyModerateUpwardForceAndSpin(body) {
+            const forceMagnitude = upwardForceMultiplier + Math.random() * 0.03;  // Moderate upward force
+            const force = {
+                x: (Math.random() - 0.5) * 0.04,  // Small horizontal force for randomness
+                y: -forceMagnitude  // Negative value for upward force
+            };
+            Body.applyForce(body, { x: body.position.x, y: body.position.y }, force);
+
+            // Apply strong angular velocity for higher flipping
+            const angularVelocity = ((Math.random() - 0.5) * 1.5) + 0.4; // Strong spin speed
+            Body.setAngularVelocity(body, angularVelocity);
+        }
+
+        // Apply initial upward force and spin
+        applyModerateUpwardForceAndSpin(trafficCone);
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            Render.lookAt(render, {
+                min: { x: 0, y: 0 },
+                max: { x: window.innerWidth, y: window.innerHeight }
+            });
+        });
+
+        // Allow resetting and reapplying upward force and spin on click
+        window.addEventListener('click', () => {
+            Body.setPosition(trafficCone, { x: window.innerWidth / 2, y: window.innerHeight - 80 });
+            Body.setVelocity(trafficCone, { x: 0, y: 0 });
+            Body.setAngularVelocity(trafficCone, 0);
+            applyModerateUpwardForceAndSpin(trafficCone);
+        });
+
+    </script>
+</body>
+</html>
