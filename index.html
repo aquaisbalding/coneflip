@@ -1,33 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spinning Traffic Cone</title>
     <style>
         body {
             margin: 0;
             overflow: hidden;
         }
-        canvas {
+
+        #world {
             display: block;
+            position: absolute;
+            height: 100%;
+            width: 100%;
+            z-index: 0;
+
+        }
+
+        #confetti-canvas {
+            display: block;
+            position: absolute;
+            height: 100%;
+            width: 100%;
+            z-index: 2;
+
         }
     </style>
 </head>
+
 <body>
+    <canvas id="confetti-canvas"></canvas>
     <canvas id="world"></canvas>
 
     <!-- Matter.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tsparticles/confetti@3.0.3/tsparticles.confetti.bundle.min.js"></script>
+
+    <!-- Sound effects --> 
+    <audio id="launchSound" src="launch.mp3"></audio>
+    <audio id="spinSound" src="flip.mp3" loop></audio>
+    <audio id="bounceSound" src="thud.mp3"></audio>
+    <audio id="coolSound" src="launch.mp3"></audio>
+
     <script>
         // Set up the Matter.js engine and world
-        const { Engine, Render, Runner, Bodies, Composite, Body, Vertices } = Matter;
+        const { Engine, Render, Runner, Bodies, Composite, Body, Vertices, Events } = Matter;
 
         const engine = Engine.create();
         const world = engine.world;
 
         // Gravity setting
-        engine.world.gravity.y = 1.0;  // Gravity for faster falling
+        engine.world.gravity.y = 1.0;
 
         const canvas = document.getElementById('world');
         const render = Render.create({
@@ -37,60 +62,125 @@
                 width: window.innerWidth,
                 height: window.innerHeight,
                 wireframes: false,
-                background: '#f0f0f0'
+                background: 'none'
             }
         });
 
         Render.run(render);
 
-        // Create a faster runner to match 60 FPS
         const runner = Runner.create({
-            delta: 1000 / 60  // Targeting 60 FPS
+            delta: 1000 / 60
         });
         Runner.run(runner, engine);
 
-        // Create ground
-        const ground = Bodies.rectangle(window.innerWidth / 2, window.innerHeight - 10, window.innerWidth, 20, {
+        // Ground
+        const ground = Bodies.rectangle(window.innerWidth / 2, window.innerHeight - 20, window.innerWidth, 20, {
             isStatic: true,
             render: {
-                fillStyle: 'transparent',  // Make the ground fill transparent
-                strokeStyle: 'transparent' // Make the ground outline transparent
+                fillStyle: 'transparent',
+                strokeStyle: 'transparent'
             }
         });
         Composite.add(world, ground);
 
-        // Define the triangle (traffic cone) shape using vertices
-        const triangleVertices = Vertices.fromPath('0 0 40 70 -40 70'); // Original size
-        const trafficCone = Bodies.fromVertices(window.innerWidth / 2, window.innerHeight - 80, [triangleVertices], {
+        // Cone vertices and scaling
+        const coneVertices = Vertices.fromPath('0 6200.83 992.78 6200.83 2481.95 0 3203.97 0 4723.22 6200.83 5806.26 6200.83 5806.26 7795.3 0 7795.3');
+        const scaledVertices = coneVertices.map(vertex => ({
+            x: vertex.x * 0.02,
+            y: vertex.y * 0.02
+        }));
+
+        const trafficCone = Bodies.fromVertices(window.innerWidth / 2, window.innerHeight - 85, [scaledVertices], {
+            restitution: 0.2,
             render: {
                 sprite: {
-                    texture: 'cone.png', // Replace with your actual traffic cone image URL
-                    xScale: 0.01,  // Original scale
-                    yScale: 0.01,
-                }
+                    texture: 'cone.png',
+                    xScale: 0.02,
+                    yScale: 0.02,
+                },
+                strokeStyle: 'black',
+                lineWidth: 2
             }
         });
+
         Composite.add(world, trafficCone);
 
-        // Variable to tweak the upward force
-        const upwardForceMultiplier = 0.1;  // Reduced force for a more moderate height
+        const upwardForceMultiplier = 0.7;
 
-        // Function to apply a moderate upward force and spin
-        function applyModerateUpwardForceAndSpin(body) {
-            const forceMagnitude = upwardForceMultiplier + Math.random() * 0.03;  // Moderate upward force
+        const launchSound = document.getElementById('launchSound');
+        const spinSound = document.getElementById('spinSound');
+        const bounceSound = document.getElementById('bounceSound');
+        const coolSound = document.getElementById('coolSound');
+
+        let uprightTimer = null;
+
+        // Apply random force and spin to the cone
+        function applyRandomUpwardForceAndSpin(body) {
+            clearTimeout(uprightTimer);
+            const forceMagnitude = upwardForceMultiplier + Math.random() * 0.05;
+            const horizontalForce = (Math.random() - 0.5) * 0.1;
             const force = {
-                x: (Math.random() - 0.5) * 0.04,  // Small horizontal force for randomness
-                y: -forceMagnitude  // Negative value for upward force
+                x: horizontalForce,
+                y: -forceMagnitude
             };
             Body.applyForce(body, { x: body.position.x, y: body.position.y }, force);
 
-            // Apply strong angular velocity for higher flipping
-            const angularVelocity = ((Math.random() - 0.5) * 1.5) + 0.4; // Strong spin speed
-            Body.setAngularVelocity(body, angularVelocity);
+            launchSound.play();
+
+            const minAngularVelocity = 0.2;
+            const additionalAngularVelocity = Math.random() * 0.8;
+            const angularVelocity = minAngularVelocity + additionalAngularVelocity;
+            Body.setAngularVelocity(body, angularVelocity * (Math.random() > 0.5 ? 1 : -1));
+
+            spinSound.play();
         }
 
-        // Apply initial upward force and spin
-        applyModerateUpwardForceAndSpin(trafficCone);
+        function checkIfUpright(body) {
+            // Normalize the angle to be within [-π, π]
+            let angle = body.angle % (2 * Math.PI);
+            if (angle > Math.PI) angle -= 2 * Math.PI;
+            if (angle < -Math.PI) angle += 2 * Math.PI;
+
+            // Check if angle is within upright range
+            const isUprightNow = Math.abs(angle) < 0.1 || Math.abs(Math.abs(angle) - Math.PI) < 0.1;
+
+            console.log("ANGLE: " + angle);
+
+            if (isUprightNow && Math.abs(body.angularVelocity) < 0.05 && Math.abs(body.velocity.x) < 0.05 && Math.abs(body.velocity.y) < 0.05) {
+                console.log('Upright and stationary detected, starting timer...');
+                uprightTimer = setTimeout(() => {
+                    // Recheck if it is still upright and stationary after 500ms
+                    if (Math.abs(angle) < 0.1 || Math.abs(Math.abs(angle) - Math.PI) < 0.1) {
+                        console.log('Cone has been upright and stationary for 500ms');
+                        coolSound.play();
+                        clearInterval(checktimer);
+                        playConfetti();
+                    }
+                }, 500); 
+            }
+        }
+
+        let checktimer;
+
+        // Set initial cone position and launch
+        Body.setPosition(trafficCone, { x: window.innerWidth / 2, y: window.innerHeight - 85 });
+        Body.setVelocity(trafficCone, { x: 0, y: 0 });
+        Body.setAngularVelocity(trafficCone, 0);
+
+        // Launch after 2 seconds
+        setTimeout(() => {
+            console.log("started");
+            Events.on(engine, 'collisionStart', function (event) {
+                bounceSound.play();
+            });
+
+            applyRandomUpwardForceAndSpin(trafficCone);
+            checktimer = setInterval(function () {
+                console.log("started");
+                checkIfUpright(trafficCone);
+            }, 1000);
+
+        }, 2000);
 
         // Handle window resize
         window.addEventListener('resize', () => {
@@ -100,14 +190,58 @@
             });
         });
 
-        // Allow resetting and reapplying upward force and spin on click
-        window.addEventListener('click', () => {
-            Body.setPosition(trafficCone, { x: window.innerWidth / 2, y: window.innerHeight - 80 });
-            Body.setVelocity(trafficCone, { x: 0, y: 0 });
-            Body.setAngularVelocity(trafficCone, 0);
-            applyModerateUpwardForceAndSpin(trafficCone);
+
+
+        // Stop spin sound when the cone stops spinning
+        Events.on(engine, 'afterUpdate', function () {
+            if (Math.abs(trafficCone.angularVelocity) < 0.05) {
+                spinSound.pause();
+            }
         });
+
+        let playConfetti = () => {
+            const count = 200,
+                defaults = {
+                    origin: { y: 0.7 },
+                };
+
+            function fire(particleRatio, opts) {
+                confetti(
+                    Object.assign({}, defaults, opts, {
+                        particleCount: Math.floor(count * particleRatio),
+                    })
+                );
+            }
+
+            fire(0.25, {
+                spread: 26,
+                startVelocity: 55,
+            });
+
+            fire(0.2, {
+                spread: 60,
+            });
+
+            fire(0.35, {
+                spread: 100,
+                decay: 0.91,
+                scalar: 0.8,
+            });
+
+            fire(0.1, {
+                spread: 120,
+                startVelocity: 25,
+                decay: 0.92,
+                scalar: 1.2,
+            });
+
+            fire(0.1, {
+                spread: 120,
+                startVelocity: 45,
+            });
+        };
 
     </script>
 </body>
+
 </html>
