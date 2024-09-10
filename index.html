@@ -40,7 +40,7 @@
     <audio id="launchSound" src="launch.mp3"></audio>
     <audio id="spinSound" src="flip.mp3" loop></audio>
     <audio id="bounceSound" src="thud.mp3"></audio>
-    <audio id="coolSound" src="launch.mp3"></audio>
+    <audio id="coolSound" src="cool.mp3"></audio>
 
     <script>
         const { Engine, Render, Runner, Bodies, Composite, Body, Vertices, Events } = Matter;
@@ -180,7 +180,7 @@
             }
         }
 
-        // Launch cones with 1 in 500 chance of 5 cones flipping at the same time
+        // Launch cones with 1 in 100 chance of 5 cones flipping at the same time
         const launchCones = () => {
 
             let randomratio = 100; // 100 = 1 in 100
