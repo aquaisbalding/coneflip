@@ -16,7 +16,6 @@
             height: 100%;
             width: 100%;
             z-index: 0;
-
         }
 
         #confetti-canvas {
@@ -25,7 +24,6 @@
             height: 100%;
             width: 100%;
             z-index: 2;
-
         }
     </style>
 </head>
@@ -38,20 +36,18 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tsparticles/confetti@3.0.3/tsparticles.confetti.bundle.min.js"></script>
 
-    <!-- Sound effects --> 
+    <!-- Sound effects -->
     <audio id="launchSound" src="launch.mp3"></audio>
     <audio id="spinSound" src="flip.mp3" loop></audio>
     <audio id="bounceSound" src="thud.mp3"></audio>
-    <audio id="coolSound" src="launch.mp3"></audio>
+    <audio id="coolSound" src="cool.mp3"></audio>
 
     <script>
-        // Set up the Matter.js engine and world
         const { Engine, Render, Runner, Bodies, Composite, Body, Vertices, Events } = Matter;
 
         const engine = Engine.create();
         const world = engine.world;
 
-        // Gravity setting
         engine.world.gravity.y = 1.0;
 
         const canvas = document.getElementById('world');
@@ -90,39 +86,38 @@
             y: vertex.y * 0.02
         }));
 
-        const trafficCone = Bodies.fromVertices(window.innerWidth / 2, window.innerHeight - 85, [scaledVertices], {
-            restitution: 0.2,
-            render: {
-                sprite: {
-                    texture: 'cone.png',
-                    xScale: 0.02,
-                    yScale: 0.02,
-                },
-                strokeStyle: 'black',
-                lineWidth: 2
-            }
-        });
+        // Create a cone
+        const createCone = (x, y) => {
+            return Bodies.fromVertices(x, y, [scaledVertices], {
+                restitution: 0.2,
+                render: {
+                    sprite: {
+                        texture: 'cone.png',
+                        xScale: 0.02,
+                        yScale: 0.02,
+                    },
+                    strokeStyle: 'black',
+                    lineWidth: 2
+                }
+            });
+        };
 
-        Composite.add(world, trafficCone);
-
-        const upwardForceMultiplier = 0.7;
-
+        // Sound effects
         const launchSound = document.getElementById('launchSound');
         const spinSound = document.getElementById('spinSound');
         const bounceSound = document.getElementById('bounceSound');
         const coolSound = document.getElementById('coolSound');
 
         let uprightTimer = null;
+        let hasCollided = false; // Ensure upright detection starts only after the first collision
+        let checktimer = null; // Timer for continuous checking
 
-        // Apply random force and spin to the cone
-        function applyRandomUpwardForceAndSpin(body) {
+        // Apply random upward force and spin to a cone
+        const applyRandomUpwardForceAndSpin = (body) => {
             clearTimeout(uprightTimer);
-            const forceMagnitude = upwardForceMultiplier + Math.random() * 0.05;
+            const forceMagnitude = 0.7 + Math.random() * 0.05;
             const horizontalForce = (Math.random() - 0.5) * 0.1;
-            const force = {
-                x: horizontalForce,
-                y: -forceMagnitude
-            };
+            const force = { x: horizontalForce, y: -forceMagnitude };
             Body.applyForce(body, { x: body.position.x, y: body.position.y }, force);
 
             launchSound.play();
@@ -133,15 +128,23 @@
             Body.setAngularVelocity(body, angularVelocity * (Math.random() > 0.5 ? 1 : -1));
 
             spinSound.play();
+        };
+
+        // Continuously check if cone is upright
+        function startUprightChecking(body) {
+            checktimer = setInterval(() => {
+                console.log("Checking if upright...");
+                checkIfUpright(body);
+            }, 2000);
         }
 
+        // Check if the cone is upright and stationary for 500ms
         function checkIfUpright(body) {
-            // Normalize the angle to be within [-π, π]
             let angle = body.angle % (2 * Math.PI);
             if (angle > Math.PI) angle -= 2 * Math.PI;
             if (angle < -Math.PI) angle += 2 * Math.PI;
 
-            // Check if angle is within upright range
+            // Check if the angle is within the upright range
             const isUprightNow = Math.abs(angle) < 0.1 || Math.abs(Math.abs(angle) - Math.PI) < 0.1;
 
             console.log("ANGLE: " + angle);
@@ -149,98 +152,145 @@
             if (isUprightNow && Math.abs(body.angularVelocity) < 0.05 && Math.abs(body.velocity.x) < 0.05 && Math.abs(body.velocity.y) < 0.05) {
                 console.log('Upright and stationary detected, starting timer...');
                 uprightTimer = setTimeout(() => {
-                    // Recheck if it is still upright and stationary after 500ms
                     if (Math.abs(angle) < 0.1 || Math.abs(Math.abs(angle) - Math.PI) < 0.1) {
                         console.log('Cone has been upright and stationary for 500ms');
                         coolSound.play();
-                        clearInterval(checktimer);
+                        clearInterval(checktimer); // Stop continuous checking
                         playConfetti();
                     }
-                }, 500); 
+                }, 500);
             }
         }
 
-        let checktimer;
+        // Play confetti
+        const playConfetti = () => {
+    const count = 200;
+    const defaults = { origin: { y: 0.9 } }; // Slightly lower starting point, near the bottom of the screen
 
-        // Set initial cone position and launch
-        Body.setPosition(trafficCone, { x: window.innerWidth / 2, y: window.innerHeight - 85 });
-        Body.setVelocity(trafficCone, { x: 0, y: 0 });
-        Body.setAngularVelocity(trafficCone, 0);
+    function fire(particleRatio, opts) {
+        confetti(
+            Object.assign({}, defaults, opts, {
+                particleCount: Math.floor(count * particleRatio),
+                angle: 270, // Confetti flies upwards (270 degrees)
+                startVelocity: 100, // Increased upward velocity
+                spread: 45, // Narrower spread so the particles go more upwards
+            })
+        );
+    }
 
-        // Launch after 2 seconds
+    fire(0.25, {
+        spread: 30,
+        startVelocity: 110, // More velocity to make it fly upwards faster
+    });
+
+    fire(0.2, {
+        spread: 40,
+        startVelocity: 130, // Even more velocity for a stronger upwards effect
+    });
+
+    fire(0.35, {
+        spread: 60,
+        decay: 0.9,
+        scalar: 0.9,
+        startVelocity: 120, // Further upward movement with decay and scalar adjustments
+    });
+
+    fire(0.1, {
+        spread: 50,
+        startVelocity: 140, // Max velocity for higher upward effect
+        decay: 0.92,
+        scalar: 1.1,
+    });
+
+    fire(0.1, {
+        spread: 55,
+        startVelocity: 150, // Strongest upward force for dramatic confetti
+    });
+};
+
+
+        // Launch cones with 1 in 500 chance of 5 cones flipping at the same time
+        const launchCones = () => {
+            const randomChance = Math.floor(Math.random() * 2) + 1;
+
+            if (randomChance === 1) {
+                console.log("1 in 500 chance triggered! Launching 5 cones.");
+                const cones = [];
+                for (let i = 0; i < 5; i++) {
+                    const cone = createCone(window.innerWidth / 2 + (i * 150) - 300, window.innerHeight - 85); // Spread cones further apart
+                    cones.push(cone);
+                    Composite.add(world, cone);
+                }
+
+                setTimeout(() => {
+                    cones.forEach(cone => applyRandomUpwardForceAndSpin(cone));
+                }, 2000);
+
+                // Only start checking for upright after the cones hit the ground
+                cones.forEach(cone => {
+                    Events.on(engine, 'collisionStart', function (event) {
+                        const pairs = event.pairs;
+                        pairs.forEach(pair => {
+                            if (pair.bodyA === cone || pair.bodyB === cone) {
+                                if (!hasCollided) {
+                                    hasCollided = true;
+                                    console.log("Ground collision detected");
+                                    startUprightChecking(cone); // Start checking after collision
+                                }
+                                bounceSound.play();
+                            }
+                        });
+                    });
+                });
+
+            } else {
+                const cone = createCone(window.innerWidth / 2, window.innerHeight - 85);
+                Composite.add(world, cone);
+
+                setTimeout(() => {
+                    applyRandomUpwardForceAndSpin(cone);
+                }, 2000);
+
+                // Only start checking for upright after the cone hits the ground
+                Events.on(engine, 'collisionStart', function (event) {
+                    const pairs = event.pairs;
+                    pairs.forEach(pair => {
+                        if (pair.bodyA === cone || pair.bodyB === cone) {
+                            if (!hasCollided) {
+                                hasCollided = true;
+                                console.log("Ground collision detected");
+                                startUprightChecking(cone); // Start checking after collision
+                            }
+                            bounceSound.play();
+                        }
+                    });
+                });
+            }
+        };
+
+        // Start launching cones after 2 seconds
         setTimeout(() => {
-            console.log("started");
-            Events.on(engine, 'collisionStart', function (event) {
-                bounceSound.play();
-            });
-
-            applyRandomUpwardForceAndSpin(trafficCone);
-            checktimer = setInterval(function () {
-                console.log("started");
-                checkIfUpright(trafficCone);
-            }, 1000);
-
+            console.log("Started");
+            launchCones();
         }, 2000);
 
-        // Handle window resize
+        // Stop spin sound when the cone stops spinning
+        Events.on(engine, 'afterUpdate', function () {
+            const bodies = engine.world.bodies.filter(body => body.label === 'Body');
+            bodies.forEach(body => {
+                if (Math.abs(body.angularVelocity) < 0.05) {
+                    spinSound.pause();
+                }
+            });
+        });
+
+        // Handle window resizing
         window.addEventListener('resize', () => {
             Render.lookAt(render, {
                 min: { x: 0, y: 0 },
                 max: { x: window.innerWidth, y: window.innerHeight }
             });
         });
-
-
-
-        // Stop spin sound when the cone stops spinning
-        Events.on(engine, 'afterUpdate', function () {
-            if (Math.abs(trafficCone.angularVelocity) < 0.05) {
-                spinSound.pause();
-            }
-        });
-
-        let playConfetti = () => {
-            const count = 200,
-                defaults = {
-                    origin: { y: 0.7 },
-                };
-
-            function fire(particleRatio, opts) {
-                confetti(
-                    Object.assign({}, defaults, opts, {
-                        particleCount: Math.floor(count * particleRatio),
-                    })
-                );
-            }
-
-            fire(0.25, {
-                spread: 26,
-                startVelocity: 55,
-            });
-
-            fire(0.2, {
-                spread: 60,
-            });
-
-            fire(0.35, {
-                spread: 100,
-                decay: 0.91,
-                scalar: 0.8,
-            });
-
-            fire(0.1, {
-                spread: 120,
-                startVelocity: 25,
-                decay: 0.92,
-                scalar: 1.2,
-            });
-
-            fire(0.1, {
-                spread: 120,
-                startVelocity: 45,
-            });
-        };
-
     </script>
 </body>
 
