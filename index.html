@@ -40,7 +40,7 @@
     <audio id="launchSound" src="launch.mp3"></audio>
     <audio id="spinSound" src="flip.mp3" loop></audio>
     <audio id="bounceSound" src="thud.mp3"></audio>
-    <audio id="coolSound" src="cool.mp3"></audio>
+    <audio id="coolSound" src="launch.mp3"></audio>
 
     <script>
         const { Engine, Render, Runner, Bodies, Composite, Body, Vertices, Events } = Matter;
@@ -182,10 +182,12 @@
 
         // Launch cones with 1 in 500 chance of 5 cones flipping at the same time
         const launchCones = () => {
-            const randomChance = Math.floor(Math.random() * 500) + 1;
+
+            let randomratio = 100; // 100 = 1 in 100
+            const randomChance = Math.floor(Math.random() * randomratio) + 1;
 
             if (randomChance === 1) {
-                console.log("1 in 500 chance triggered! Launching 5 cones.");
+                console.log("1 in 100 chance triggered! Launching 5 cones.");
                 const cones = [];
                 for (let i = 0; i < 5; i++) {
                     const cone = createCone(window.innerWidth / 2 + (i * 150) - 300, window.innerHeight - 85); // Spread cones further apart
