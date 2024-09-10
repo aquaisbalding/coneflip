@@ -162,56 +162,10 @@
             }
         }
 
-        // Play confetti
-        const playConfetti = () => {
-    const count = 200;
-    const defaults = { origin: { y: 0.9 } }; // Slightly lower starting point, near the bottom of the screen
-
-    function fire(particleRatio, opts) {
-        confetti(
-            Object.assign({}, defaults, opts, {
-                particleCount: Math.floor(count * particleRatio),
-                angle: 270, // Confetti flies upwards (270 degrees)
-                startVelocity: 100, // Increased upward velocity
-                spread: 45, // Narrower spread so the particles go more upwards
-            })
-        );
-    }
-
-    fire(0.25, {
-        spread: 30,
-        startVelocity: 110, // More velocity to make it fly upwards faster
-    });
-
-    fire(0.2, {
-        spread: 40,
-        startVelocity: 130, // Even more velocity for a stronger upwards effect
-    });
-
-    fire(0.35, {
-        spread: 60,
-        decay: 0.9,
-        scalar: 0.9,
-        startVelocity: 120, // Further upward movement with decay and scalar adjustments
-    });
-
-    fire(0.1, {
-        spread: 50,
-        startVelocity: 140, // Max velocity for higher upward effect
-        decay: 0.92,
-        scalar: 1.1,
-    });
-
-    fire(0.1, {
-        spread: 55,
-        startVelocity: 150, // Strongest upward force for dramatic confetti
-    });
-};
-
-
+   
         // Launch cones with 1 in 500 chance of 5 cones flipping at the same time
         const launchCones = () => {
-            const randomChance = Math.floor(Math.random() * 2) + 1;
+            const randomChance = Math.floor(Math.random() * 500) + 1;
 
             if (randomChance === 1) {
                 console.log("1 in 500 chance triggered! Launching 5 cones.");
@@ -291,6 +245,57 @@
                 max: { x: window.innerWidth, y: window.innerHeight }
             });
         });
+
+
+           // Here's a kitty buh
+        /*
+         /\_/\  
+        ( o.o ) 
+         > ^ <
+        */
+
+        let playConfetti = () => {
+            const count = 200,
+                defaults = {
+                    origin: { y: 0.7 },
+                };
+
+            function fire(particleRatio, opts) {
+                confetti(
+                    Object.assign({}, defaults, opts, {
+                        particleCount: Math.floor(count * particleRatio),
+                    })
+                );
+            }
+
+            fire(0.25, {
+                spread: 26,
+                startVelocity: 55,
+            });
+
+            fire(0.2, {
+                spread: 60,
+            });
+
+            fire(0.35, {
+                spread: 100,
+                decay: 0.91,
+                scalar: 0.8,
+            });
+
+            fire(0.1, {
+                spread: 120,
+                startVelocity: 25,
+                decay: 0.92,
+                scalar: 1.2,
+            });
+
+            fire(0.1, {
+                spread: 120,
+                startVelocity: 45,
+            });
+        };
+
     </script>
 </body>
 
